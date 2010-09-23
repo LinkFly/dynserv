@@ -1,0 +1,1 @@
+./my-daemon.sh zap

@@ -1,0 +1,4 @@
+cd $(dirname $0)
+PATH=$(pwd)/lisp/bin:$PATH
+SBCL_HOME=$(pwd)/lisp/lib/sbcl
+PATH=$PATH SBCL_HOME=$SBCL_HOME sbcl --core $SBCL_HOME/$1 --noinform --no-userinit --no-sysinit $@

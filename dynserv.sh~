@@ -1,0 +1,13 @@
+cd $(dirname $0)
+PATH=$(pwd)/lisp/bin:$PATH
+SBCL_HOME=$(pwd)/lisp/lib/sbcl
+
+if [ -f $SBCL_HOME/dynserv.core ]
+then
+    echo "Now using dynserv.core"
+    LISP_CORE=$SBCL_HOME/dynserv.core
+else
+    LISP_CORE=$SBCL_HOME/sbcl.core
+fi
+
+PATH=$PATH SBCL_HOME=$SBCL_HOME sbcl --core $LISP_CORE --noinform --no-userinit --no-sysinit $@
