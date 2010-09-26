@@ -13,7 +13,7 @@
 ;;;;
 ;;;; Main Author: Moskvitin Andrey <archimag@gmail.com>
 ;;;; After of change: Katrevich Sergey <linkfly1@newmail.ru>
-#+debug   (declaim (optimize (debug 3) (safety 0) (speed 0)))
+#+debug   (declaim (optimize (debug 3) (safety 3) (speed 0)))
 #+release (declaim (optimize (debug 0) (safety 3) (speed 3)))
 
 (with-output-to-string (*standard-output*)
