@@ -104,6 +104,7 @@
        (defparameter ,name
 	 (let ((symbol (find-symbol (symbol-name ',name) 
 				    '#:sbcl.daemon.preferences)))
+	   (unless symbol (error "Config parameter ~S unvalid" ',name))
 	   (if (boundp symbol)
 	       (symbol-value symbol)
 	       ,default)))))
@@ -161,11 +162,22 @@
 
 (defpref *default-host-redirect*)
 
-;;; Else parameters ;;;
-(defpref *change-user-p* t) 
-;;;;;;;;;;;;;;;;;;;;;;;
-
 (delete-package '#:sbcl.daemon.preferences)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; start swank server
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(when *swankport*
+  (asdf:oos 'asdf:load-op :swank)
+  (let ((*package* (find-package :swank)))
+    (setf (symbol-value 
+	   (find-symbol "*USE-DEDICATED-OUTPUT-STREAM*" :swank))
+	  nil)
+    (funcall (find-symbol "CREATE-SERVER" :swank)
+	     :port *swankport*
+	     :coding-system "utf-8-unix"
+	     :dont-close t)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Processing command line arguments
@@ -261,22 +273,7 @@
       (sb-posix:dup2 out-fd 1)
       (sb-posix:dup2 err-fd 2))))
 
-(defun change-user (name &optional group)
-  (let ((gid)
-        (uid))
-    (when group
-      (setf gid
-            (sb-posix:group-gid (sb-posix:getgrnam group))))
-    (let ((passwd (sb-posix:getpwnam name)))
-      (unless passwd (error "Bad passwd struct. Bad user name? User name: ~A" name))
-      (unless group
-        (setf gid
-              (sb-posix:passwd-gid passwd))
-        (setf uid
-              (sb-posix:passwd-uid passwd))))    
-    (sb-posix:setresgid gid gid gid)
-    (sb-posix:initgroups name gid)
-    (sb-posix:setresuid uid uid uid)))
+
 
 (defvar *status* nil)
 
@@ -292,13 +289,28 @@
 ;;;;; change uid and gid
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defun change-user (name &optional group)
+  (let ((gid)
+        (uid))    
+    (when group
+      (setf gid
+            (sb-posix:group-gid (sb-posix:getgrnam group))))    
+    (let ((passwd (sb-posix:getpwnam name)))
+      (unless passwd (error "Bad passwd struct. Bad user name? User name: ~A" name))
+      (unless group
+        (setf gid
+              (sb-posix:passwd-gid passwd))
+        (setf uid
+              (sb-posix:passwd-uid passwd))))   
+    (sb-posix:setresgid gid gid gid)
+    (sb-posix:initgroups name gid)
+    (sb-posix:setresuid uid uid uid)))  
+
 ;;;; required for start hunchentoot on port 80
 (sb-posix::define-call "prctl" int minusp (option int) (arg int))
 (sb-posix:prctl +PR_SET_KEEPCAPS+ 1)
 
-(with-exit-on-error 
-  (if *change-user-p* (change-user *user* *group*)))
-      
+(with-exit-on-error (change-user *user* *group*))
 
 ;;;; required for start hunchentoot on port 80
 (load-shared-object (find-if #'probe-file
@@ -308,12 +320,9 @@
 (sb-posix::define-call "cap_set_proc" int minusp (cap_p (* char)))
 (sb-posix::define-call "cap_free" int minusp (cap_p (* char)))
 
-(when (string= "root"
-	       (sb-posix:passwd-name
-		(sb-posix:getpwuid (sb-posix:getuid))))       
-  (let ((cap_p (sb-posix:cap-from-text "CAP_NET_BIND_SERVICE=ep")))
+(let ((cap_p (sb-posix:cap-from-text "CAP_NET_BIND_SERVICE=ep")))
     (sb-posix:cap-set-proc cap_p)
-    (sb-posix:cap-free cap_p)))
+    (sb-posix:cap-free cap_p))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; fork!
@@ -393,21 +402,6 @@
 ;(setf asdf:*centralize-lisp-binaries* t)
 
 ;(setf asdf:*default-toplevel-directory* *fasldir*)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; start swank server
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(when *swankport*
-  (asdf:oos 'asdf:load-op :swank)
-  (let ((*package* (find-package :swank)))
-    (setf (symbol-value 
-	   (find-symbol "*USE-DEDICATED-OUTPUT-STREAM*" :swank))
-	  nil)
-    (funcall (find-symbol "CREATE-SERVER" :swank)
-	     :port *swankport*
-	     :coding-system "utf-8-unix"
-	     :dont-close t)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Start restas server
