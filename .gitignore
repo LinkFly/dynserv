@@ -1,2 +1,2 @@
 dynserv-compiled-libs/*
-instances/*
+instances/**/*
