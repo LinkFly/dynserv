@@ -93,7 +93,9 @@
            #:*asdf-central-registry*
            #:*asdf-load-systems*
            #:*sites*
-	   #:*source-registry*))
+	   #:*source-registry*
+	   #:*access-log-file*
+	   #:*message-log-file*))
 
 (with-exit-on-error
   (let ((*package* (find-package '#:sbcl.daemon.preferences)))
@@ -161,6 +163,12 @@
 (defpref *sites*)
 
 (defpref *default-host-redirect*)
+
+(defpref *access-log-file*)
+(when *access-log-file* (relative-to-absolute *access-log-file*))
+
+(defpref *message-log-file*)
+(when *message-log-file* (relative-to-absolute *message-log-file*))
 
 (delete-package '#:sbcl.daemon.preferences)
 
@@ -454,5 +462,40 @@
   (setf *debugger-hook* nil)
 
   (log-info "Start ~A daemon" *name*))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;; Using hunchentoot logging and error system ;;;;;;;;;;;;
+(setq hunchentoot:*access-log-pathname* *access-log-file*)
+(setq hunchentoot:*message-log-pathname* *message-log-file*)
+
+(in-package :hunchentoot)
+
+(dolist (acceptor restas::*acceptors*)
+  (setf (hunchentoot:acceptor-access-logger acceptor)
+	'log-dynserv-access-to-file))
+
+(defun log-dynserv-access-to-file (&key return-code content content-length)
+;  (break "log-dynserv-access-to-file")
+  "Sends a standardized access log message to the file denoted by
+*ACCESS-LOG-FILE* with information about the current request and
+response."
+  (with-log-file (stream *access-log-pathname* *access-log-lock*)
+;    (format stream "~:[-~@[ (~A)~]~;~:*~A~@[ (~A)~]~] ~:[-~;~:*~A~] [~A] \"~A ~A~@[?~A~] ~
+;                    ~A\" ~A ~:[~*-~;~D~] \"~:[-~;~:*~A~]\" \"~:[-~;~:*~A~]\"~%"
+					;                           !!!
+    (format stream "~:[-~@[ (~A)~]~;~:*~A~@[ (~A)~]~] ~:[-~;~:*~A~] ~A \"~A ~A~@[?~A~] ~
+                    ~A\" ~A ~:[~*-~;~D~] \"~:[-~;~:*~A~]\" \"~:[-~;~:*~A~]\"~%"
+            (remote-addr*)
+            (header-in* :x-forwarded-for)
+            (authorization)
+            (iso-time)
+            (request-method*)
+            (script-name*)
+            (query-string*)
+            (server-protocol*)
+            return-code
+            content
+            content-length
+            (referer)
+            (user-agent))))
 
 
