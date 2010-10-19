@@ -426,10 +426,14 @@
     (loop
        for site in *sites*
        do (if (consp site)
-	      (funcall (find-symbol "START" :restas)
+	      (apply (find-symbol "START" :restas)
 		       (first site)
 		       :hostname (second site)
-		       :port (third site))
+		       :port (third site)
+		       (let* ((ssl-files (fourth site)))
+		   (list :ssl-certificate-file (first ssl-files)
+			 :ssl-privatekey-file (second ssl-files)
+			 :ssl-privatekey-password (third ssl-files))))
 	      (funcall (find-symbol "START" :restas)
 		       site)))))
 

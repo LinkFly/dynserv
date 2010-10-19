@@ -1,0 +1,7 @@
+(defpackage :daemon-right-restricting
+  (:use :cl)
+  (:export
+   ))
+
+(in-package :daemon-right-restricting)
+

@@ -1,0 +1,10 @@
+(defpackage :daemonization-sys
+  (:use :cl
+	#+sbcl :sb-alien
+	#+sbcl :sb-ext
+	#-sbcl (error "Not implemented for not SBCL"))
+  (:export
+   ))
+
+(in-package :daemonization-sys)
+

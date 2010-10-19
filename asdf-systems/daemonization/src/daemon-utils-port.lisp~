@@ -1,0 +1,14 @@
+(defpackage :daemon-utils-port
+  (:use :cl :daemon-sys-port)
+  (:export #:change-user
+	   ))
+
+(defun unix-change-user (name &optional group)
+  (let* ((passwd (sb-posix:getpwnam name))
+	 (gid (if group
+		  (sb-posix:group-gid (sb-posix:getgrnam group))
+		  (sb-posix:passwd-gid passwd)))
+	 (uid (sb-posix:passwd-uid passwd)))
+    (sb-posix:setresgid gid gid gid)
+    (sb-posix:initgroups name gid)
+    (sb-posix:setresuid uid uid uid))) 

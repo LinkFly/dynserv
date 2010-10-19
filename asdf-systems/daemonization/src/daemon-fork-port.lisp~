@@ -1,0 +1,6 @@
+(defvar *status* nil)
+
+(defun signal-handler (sig info context)
+  (declare (ignore info context))
+  (setf *status* sig))
+
