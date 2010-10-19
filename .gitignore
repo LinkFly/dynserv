@@ -1,3 +1,5 @@
+*.*~
+*.fasl
 dynserv-compiled-libs/*
 instances/*
 logs/*
